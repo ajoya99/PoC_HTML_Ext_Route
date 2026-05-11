@@ -106,6 +106,31 @@
       margin-top: 6px;
     }
 
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 2px 0 4px;
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.55);
+    }
+
+    .toggle-row label {
+      margin: 0;
+      font-size: 0.8rem;
+      letter-spacing: 0.06em;
+    }
+
+    .toggle-row input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      margin: 0;
+      accent-color: var(--accent);
+      box-shadow: none;
+    }
+
     button {
       border: none;
       border-radius: 12px;
@@ -199,8 +224,13 @@
         <input id="loc3" name="loc3" placeholder="Address or city" required>
       </div>
 
+      <div class="toggle-row">
+        <input id="sameStartEnd" name="sameStartEnd" type="checkbox" checked>
+        <label for="sameStartEnd">Use same start and end location (round trip)</label>
+      </div>
+
       <div>
-        <label for="loc4">Location 4</label>
+        <label id="loc4Label" for="loc4">Location 4</label>
         <input id="loc4" name="loc4" placeholder="Address or city" required>
       </div>
 
@@ -230,6 +260,8 @@
     const routeListEl = document.getElementById("routeList");
     const mapsLinkEl = document.getElementById("mapsLink");
     const goBtn = document.getElementById("goBtn");
+    const sameStartEndToggle = document.getElementById("sameStartEnd");
+    const loc4Label = document.getElementById("loc4Label");
 
     function setStatus(message, type = "") {
       statusEl.textContent = message;
@@ -289,7 +321,7 @@
       return total;
     }
 
-    function bestRouteForFour(coords) {
+    function bestRouteRoundTrip(coords) {
       const perms = [
         [1, 2, 3],
         [1, 3, 2],
@@ -314,6 +346,38 @@
       return { bestOrder, bestDistance };
     }
 
+    function bestRouteDifferentEnd(coords) {
+      const perms = [
+        [1, 2],
+        [2, 1]
+      ];
+
+      let bestOrder = null;
+      let bestDistance = Infinity;
+
+      for (const p of perms) {
+        const order = [0, ...p, 3];
+        const dist = routeDistance(order, coords);
+        if (dist < bestDistance) {
+          bestDistance = dist;
+          bestOrder = order;
+        }
+      }
+
+      return { bestOrder, bestDistance };
+    }
+
+    function updateModeLabels() {
+      if (sameStartEndToggle.checked) {
+        loc4Label.textContent = "Location 4";
+      } else {
+        loc4Label.textContent = "End location";
+      }
+    }
+
+    sameStartEndToggle.addEventListener("change", updateModeLabels);
+    updateModeLabels();
+
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
       resetResult();
@@ -334,12 +398,15 @@
       setStatus("Geocoding and optimizing route...", "");
 
       try {
+        const useSameStartEnd = sameStartEndToggle.checked;
         const coords = [];
         for (const location of locations) {
           coords.push(await geocode(location));
         }
 
-        const { bestOrder, bestDistance } = bestRouteForFour(coords);
+        const { bestOrder, bestDistance } = useSameStartEnd
+          ? bestRouteRoundTrip(coords)
+          : bestRouteDifferentEnd(coords);
 
         const orderedLocations = bestOrder.map((idx) => locations[idx]);
         const orderedCoords = bestOrder.map((idx) => coords[idx]);
