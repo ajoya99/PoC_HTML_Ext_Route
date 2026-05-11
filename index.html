@@ -1,0 +1,368 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Route Optimizer - Phone Ready</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f2efe7;
+      --ink: #14281d;
+      --card: rgba(255, 251, 240, 0.9);
+      --accent: #188b5a;
+      --accent-2: #0c5f45;
+      --line: #b9c7b6;
+      --warn: #bc450e;
+      --ok: #156f4b;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Space Grotesk", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(1400px 500px at 10% -10%, #e6d8a9 10%, transparent 60%),
+        radial-gradient(1200px 600px at 95% 10%, #cbe7d8 12%, transparent 65%),
+        linear-gradient(160deg, #f6f3ea 0%, #eef3e2 100%);
+      display: grid;
+      place-items: center;
+      padding: 20px;
+    }
+
+    .shell {
+      width: min(920px, 100%);
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      background: var(--card);
+      backdrop-filter: blur(12px);
+      box-shadow: 0 20px 50px rgba(20, 40, 29, 0.18);
+      overflow: hidden;
+    }
+
+    .top {
+      padding: 30px 24px 18px;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(110deg, rgba(24, 139, 90, .12), rgba(12, 95, 69, .03));
+    }
+
+    h1 {
+      margin: 0;
+      font-family: "Fraunces", serif;
+      font-size: clamp(1.8rem, 3.5vw, 2.7rem);
+      line-height: 1.08;
+    }
+
+    .subtitle {
+      margin: 10px 0 0;
+      font-size: 0.98rem;
+      opacity: 0.9;
+      max-width: 68ch;
+    }
+
+    form {
+      display: grid;
+      gap: 12px;
+      padding: 22px 24px 26px;
+    }
+
+    label {
+      font-size: 0.84rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--accent-2);
+      margin-bottom: 6px;
+      display: inline-block;
+    }
+
+    input {
+      width: 100%;
+      padding: 13px 12px;
+      border-radius: 12px;
+      border: 1px solid #a5b5a9;
+      font-size: 1rem;
+      font-family: "Space Grotesk", sans-serif;
+      background: rgba(255, 255, 255, 0.9);
+      color: var(--ink);
+    }
+
+    input:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 4px rgba(24, 139, 90, 0.16);
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 12px;
+      margin-top: 6px;
+    }
+
+    button {
+      border: none;
+      border-radius: 12px;
+      background: linear-gradient(140deg, var(--accent), var(--accent-2));
+      color: #fff;
+      font-family: "Space Grotesk", sans-serif;
+      font-size: 1rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      padding: 14px 24px;
+      cursor: pointer;
+    }
+
+    button:disabled { opacity: 0.65; cursor: wait; }
+
+    .status {
+      font-size: 0.94rem;
+      min-height: 1.5em;
+    }
+
+    .status.error { color: var(--warn); }
+    .status.ok { color: var(--ok); }
+
+    .result {
+      margin-top: 8px;
+      border: 1px dashed #9eb4a4;
+      border-radius: 12px;
+      padding: 14px;
+      background: rgba(255, 255, 255, 0.68);
+      display: none;
+    }
+
+    .result.visible { display: block; }
+
+    .result h2 {
+      margin: 0 0 10px;
+      font-family: "Fraunces", serif;
+      font-size: 1.2rem;
+    }
+
+    .route-list {
+      margin: 8px 0 14px;
+      padding-left: 20px;
+      line-height: 1.6;
+    }
+
+    .map-link {
+      display: inline-block;
+      font-weight: 700;
+      color: var(--accent-2);
+      text-decoration-thickness: 2px;
+      text-underline-offset: 3px;
+      word-break: break-word;
+    }
+
+    .note {
+      margin-top: 12px;
+      font-size: 0.86rem;
+      opacity: 0.82;
+    }
+
+    @media (max-width: 740px) {
+      .top { padding: 22px 16px 14px; }
+      form { padding: 16px; }
+      button { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <section class="top">
+      <h1>Route Optimizer</h1>
+      <p class="subtitle">
+        GitHub Pages mode. Enter exactly 4 locations and click GO to compute the shortest route in the browser, then open it in Google Maps.
+      </p>
+    </section>
+
+    <form id="routeForm">
+      <div>
+        <label for="loc1">Location 1 (start and end)</label>
+        <input id="loc1" name="loc1" placeholder="Kamerlingh Onnesweg 9, Dordrecht" required>
+      </div>
+
+      <div>
+        <label for="loc2">Location 2</label>
+        <input id="loc2" name="loc2" placeholder="Address or city" required>
+      </div>
+
+      <div>
+        <label for="loc3">Location 3</label>
+        <input id="loc3" name="loc3" placeholder="Address or city" required>
+      </div>
+
+      <div>
+        <label for="loc4">Location 4</label>
+        <input id="loc4" name="loc4" placeholder="Address or city" required>
+      </div>
+
+      <div class="actions">
+        <button id="goBtn" type="submit">GO</button>
+        <div id="status" class="status" aria-live="polite"></div>
+      </div>
+
+      <section id="result" class="result" aria-live="polite">
+        <h2>Best Route</h2>
+        <div id="distance"></div>
+        <ol id="routeList" class="route-list"></ol>
+        <a id="mapsLink" class="map-link" href="#" target="_blank" rel="noopener noreferrer">Open route in Google Maps</a>
+      </section>
+
+      <div class="note">
+        Uses OpenStreetMap Nominatim for geocoding in the browser. This static mode does not execute the notebook directly.
+      </div>
+    </form>
+  </main>
+
+  <script>
+    const form = document.getElementById("routeForm");
+    const statusEl = document.getElementById("status");
+    const resultEl = document.getElementById("result");
+    const distanceEl = document.getElementById("distance");
+    const routeListEl = document.getElementById("routeList");
+    const mapsLinkEl = document.getElementById("mapsLink");
+    const goBtn = document.getElementById("goBtn");
+
+    function setStatus(message, type = "") {
+      statusEl.textContent = message;
+      statusEl.className = `status ${type}`.trim();
+    }
+
+    function resetResult() {
+      resultEl.classList.remove("visible");
+      routeListEl.innerHTML = "";
+      distanceEl.textContent = "";
+      mapsLinkEl.href = "#";
+    }
+
+    function haversineKm(lat1, lon1, lat2, lon2) {
+      const R = 6371;
+      const toRad = (deg) => (deg * Math.PI) / 180;
+      const dLat = toRad(lat2 - lat1);
+      const dLon = toRad(lon2 - lon1);
+      const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return R * c;
+    }
+
+    async function geocode(address) {
+      const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(address)}`;
+      const response = await fetch(url, {
+        headers: {
+          "Accept": "application/json"
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error("Geocoding request failed");
+      }
+
+      const data = await response.json();
+      if (!Array.isArray(data) || data.length === 0) {
+        throw new Error(`Could not geocode: ${address}`);
+      }
+
+      return {
+        lat: Number(data[0].lat),
+        lon: Number(data[0].lon)
+      };
+    }
+
+    function routeDistance(order, coords) {
+      let total = 0;
+      for (let i = 0; i < order.length - 1; i++) {
+        const a = coords[order[i]];
+        const b = coords[order[i + 1]];
+        total += haversineKm(a.lat, a.lon, b.lat, b.lon);
+      }
+      return total;
+    }
+
+    function bestRouteForFour(coords) {
+      const perms = [
+        [1, 2, 3],
+        [1, 3, 2],
+        [2, 1, 3],
+        [2, 3, 1],
+        [3, 1, 2],
+        [3, 2, 1]
+      ];
+
+      let bestOrder = null;
+      let bestDistance = Infinity;
+
+      for (const p of perms) {
+        const order = [0, ...p, 0];
+        const dist = routeDistance(order, coords);
+        if (dist < bestDistance) {
+          bestDistance = dist;
+          bestOrder = order;
+        }
+      }
+
+      return { bestOrder, bestDistance };
+    }
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      resetResult();
+
+      const locations = [
+        form.loc1.value.trim(),
+        form.loc2.value.trim(),
+        form.loc3.value.trim(),
+        form.loc4.value.trim()
+      ];
+
+      if (locations.some((value) => !value)) {
+        setStatus("Please fill all 4 location fields.", "error");
+        return;
+      }
+
+      goBtn.disabled = true;
+      setStatus("Geocoding and optimizing route...", "");
+
+      try {
+        const coords = [];
+        for (const location of locations) {
+          coords.push(await geocode(location));
+        }
+
+        const { bestOrder, bestDistance } = bestRouteForFour(coords);
+
+        const orderedLocations = bestOrder.map((idx) => locations[idx]);
+        const orderedCoords = bestOrder.map((idx) => coords[idx]);
+
+        distanceEl.textContent = `Estimated total distance: ${bestDistance.toFixed(2)} km`;
+
+        orderedLocations.forEach((loc) => {
+          const li = document.createElement("li");
+          li.textContent = loc;
+          routeListEl.appendChild(li);
+        });
+
+        const mapsLink = "https://www.google.com/maps/dir/" + orderedCoords.map((c) => `${c.lat},${c.lon}`).join("/");
+        mapsLinkEl.href = mapsLink;
+
+        resultEl.classList.add("visible");
+        setStatus("Route calculated successfully.", "ok");
+      } catch (error) {
+        setStatus(error.message || "Unexpected error", "error");
+      } finally {
+        goBtn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
