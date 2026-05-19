@@ -277,6 +277,104 @@
         padding: 6px 9px;
       }
     }
+
+    /* OCR modal */
+    .ocr-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(20, 40, 29, 0.55);
+      backdrop-filter: blur(3px);
+      z-index: 200;
+      place-items: center;
+    }
+    .ocr-overlay.open { display: grid; }
+
+    .ocr-panel {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      padding: 26px 24px;
+      width: min(520px, 92vw);
+      max-height: 85vh;
+      overflow-y: auto;
+      box-shadow: 0 24px 60px rgba(20,40,29,0.22);
+    }
+
+    .ocr-panel h3 {
+      font-family: "Fraunces", serif;
+      font-size: 1.2rem;
+      margin: 0 0 14px;
+      color: var(--accent-2);
+    }
+
+    .ocr-drop {
+      border: 2px dashed var(--line);
+      border-radius: 12px;
+      padding: 22px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+      background: rgba(255,255,255,0.6);
+    }
+    .ocr-drop:hover, .ocr-drop.drag-over { border-color: var(--accent); background: rgba(24,139,90,0.06); }
+    .ocr-drop input[type=file] { display: none; }
+    .ocr-drop p { font-size: 0.88rem; color: #5a7060; margin: 6px 0 0; }
+
+    #ocrProgress {
+      font-size: 0.84rem;
+      color: #5a7060;
+      margin: 10px 0 0;
+      min-height: 1.4em;
+    }
+
+    #ocrPreview {
+      max-width: 100%;
+      max-height: 180px;
+      border-radius: 8px;
+      margin: 10px 0 0;
+      display: none;
+      border: 1px solid var(--line);
+    }
+
+    .ocr-lines {
+      margin: 14px 0 0;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      max-height: 240px;
+      overflow-y: auto;
+    }
+
+    .ocr-line-item {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 7px 10px;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      background: rgba(255,255,255,0.7);
+      cursor: pointer;
+      font-size: 0.88rem;
+    }
+    .ocr-line-item:hover { background: rgba(24,139,90,0.07); }
+    .ocr-line-item input[type=checkbox] {
+      width: 16px; height: 16px; margin: 0; flex-shrink: 0;
+      accent-color: var(--accent);
+    }
+
+    .ocr-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 16px;
+      flex-wrap: wrap;
+    }
+    .ocr-actions button { flex: 1; }
+    .ocr-cancel {
+      background: rgba(255,255,255,0.8) !important;
+      color: var(--ink) !important;
+      border: 1px solid var(--line) !important;
+    }
   </style>
 </head>
 <body>
@@ -296,8 +394,10 @@
     <form id="routeForm">
       <div id="locationsContainer"></div>
 
-      <div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
         <button id="addLocationBtn" class="secondary-btn" type="button">+ Add location</button>
+        <button id="scanImageBtn" class="secondary-btn" type="button">📷 <span id="scanBtnText">Scan image</span></button>
+        <input type="file" id="ocrFileInput" accept="image/*" capture="environment" style="display:none">
       </div>
 
       <div id="roundTripRow" class="toggle-row">
@@ -323,6 +423,26 @@
     </form>
   </main>
 
+  <!-- OCR modal -->
+  <div class="ocr-overlay" id="ocrOverlay">
+    <div class="ocr-panel">
+      <h3 id="ocr-title">Scan addresses from image</h3>
+      <div class="ocr-drop" id="ocrDrop" onclick="document.getElementById('ocrDropInput').click()">
+        <input type="file" id="ocrDropInput" accept="image/*">
+        <span style="font-size:1.8rem;">🖼️</span>
+        <p id="ocr-drop-hint">Click to choose an image — or drag & drop it here</p>
+      </div>
+      <img id="ocrPreview" alt="preview">
+      <div id="ocrProgress"></div>
+      <div class="ocr-lines" id="ocrLines"></div>
+      <div class="ocr-actions">
+        <button id="ocrAddBtn" type="button" style="display:none;"><span id="ocr-add-btn-text">Add selected</span></button>
+        <button class="ocr-cancel secondary-btn" id="ocrCancelBtn" type="button"><span id="ocr-cancel-text">Cancel</span></button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
   <script>
     const form = document.getElementById("routeForm");
     const statusEl = document.getElementById("status");
@@ -355,6 +475,15 @@
         locX: "Location",
         addLocation: "+ Add location",
         removeLocation: "Remove",
+        scanImage: "Scan image",
+        ocrTitle: "Scan addresses from image",
+        ocrDropHint: "Click to choose an image — or drag & drop it here",
+        ocrProcessing: "Reading text from image…",
+        ocrDone: "Found {n} lines — select the ones to use as locations:",
+        ocrNone: "No readable text found. Try a clearer image.",
+        ocrAddBtn: "Add selected",
+        ocrCancel: "Cancel",
+        ocrAdded: "{n} location(s) added.",
         minLocations: "Please provide at least 2 locations.",
         endLocation: "End location",
         sameStartEnd: "Use same start and end location (round trip)",
@@ -375,6 +504,15 @@
         locX: "Locatie",
         addLocation: "+ Locatie toevoegen",
         removeLocation: "Verwijder",
+        scanImage: "Foto scannen",
+        ocrTitle: "Adressen scannen uit afbeelding",
+        ocrDropHint: "Klik om een afbeelding te kiezen — of sleep hem hierheen",
+        ocrProcessing: "Tekst lezen uit afbeelding…",
+        ocrDone: "{n} regels gevonden — selecteer de adressen:",
+        ocrNone: "Geen leesbare tekst gevonden. Probeer een duidelijkere afbeelding.",
+        ocrAddBtn: "Geselecteerde toevoegen",
+        ocrCancel: "Annuleren",
+        ocrAdded: "{n} locatie(s) toegevoegd.",
         minLocations: "Vul minimaal 2 locaties in.",
         endLocation: "Eindlocatie",
         sameStartEnd: "Gebruik dezelfde start- en eindlocatie (retourrit)",
@@ -510,6 +648,13 @@
       Array.from(locationsContainer.querySelectorAll(".remove-location-btn")).forEach((btn) => {
         btn.textContent = t.removeLocation;
       });
+
+      // OCR modal strings
+      document.getElementById("scanBtnText").textContent = t.scanImage;
+      document.getElementById("ocr-title").textContent = t.ocrTitle;
+      document.getElementById("ocr-drop-hint").textContent = t.ocrDropHint;
+      document.getElementById("ocr-add-btn-text").textContent = t.ocrAddBtn;
+      document.getElementById("ocr-cancel-text").textContent = t.ocrCancel;
 
       ensureRoundTripRowPosition();
       updateModeLabels();
@@ -678,6 +823,121 @@
     });
     langENBtn.addEventListener("click", () => setLanguage("en"));
     langNLBtn.addEventListener("click", () => setLanguage("nl"));
+
+    // ── OCR / Scan image ──────────────────────────────────────────────────────
+    const ocrOverlay   = document.getElementById("ocrOverlay");
+    const ocrDrop      = document.getElementById("ocrDrop");
+    const ocrDropInput = document.getElementById("ocrDropInput");
+    const ocrPreview   = document.getElementById("ocrPreview");
+    const ocrProgress  = document.getElementById("ocrProgress");
+    const ocrLines     = document.getElementById("ocrLines");
+    const ocrAddBtn    = document.getElementById("ocrAddBtn");
+    const ocrCancelBtn = document.getElementById("ocrCancelBtn");
+
+    function openOcrModal() {
+      ocrOverlay.classList.add("open");
+      ocrPreview.style.display = "none";
+      ocrPreview.src = "";
+      ocrProgress.textContent = "";
+      ocrLines.innerHTML = "";
+      ocrAddBtn.style.display = "none";
+      ocrDropInput.value = "";
+    }
+
+    function closeOcrModal() {
+      ocrOverlay.classList.remove("open");
+    }
+
+    document.getElementById("scanImageBtn").addEventListener("click", openOcrModal);
+    ocrCancelBtn.addEventListener("click", closeOcrModal);
+    ocrOverlay.addEventListener("click", (e) => { if (e.target === ocrOverlay) closeOcrModal(); });
+
+    // Drag-and-drop onto modal drop zone
+    ocrDrop.addEventListener("dragover", (e) => { e.preventDefault(); ocrDrop.classList.add("drag-over"); });
+    ocrDrop.addEventListener("dragleave", () => ocrDrop.classList.remove("drag-over"));
+    ocrDrop.addEventListener("drop", (e) => {
+      e.preventDefault();
+      ocrDrop.classList.remove("drag-over");
+      const file = e.dataTransfer.files[0];
+      if (file && file.type.startsWith("image/")) runOCR(file);
+    });
+
+    ocrDropInput.addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (file) runOCR(file);
+    });
+
+    async function runOCR(file) {
+      const t = i18n[currentLang];
+      // Show preview
+      const objectURL = URL.createObjectURL(file);
+      ocrPreview.src = objectURL;
+      ocrPreview.style.display = "block";
+      ocrLines.innerHTML = "";
+      ocrAddBtn.style.display = "none";
+      ocrProgress.textContent = t.ocrProcessing;
+
+      try {
+        const result = await Tesseract.recognize(file, "nld+eng", {
+          logger: (m) => {
+            if (m.status === "recognizing text") {
+              ocrProgress.textContent = t.ocrProcessing + " " + Math.round(m.progress * 100) + "%";
+            }
+          }
+        });
+
+        const lines = result.data.lines
+          .map(l => l.text.trim())
+          .filter(l => l.length > 3);   // skip very short fragments
+
+        if (lines.length === 0) {
+          ocrProgress.textContent = t.ocrNone;
+          return;
+        }
+
+        ocrProgress.textContent = t.ocrDone.replace("{n}", lines.length);
+        ocrLines.innerHTML = "";
+        lines.forEach((line, idx) => {
+          const item = document.createElement("label");
+          item.className = "ocr-line-item";
+          const cb = document.createElement("input");
+          cb.type = "checkbox";
+          cb.value = line;
+          // Pre-check lines that look like addresses (contain digit + word)
+          if (/\d/.test(line) && /[a-zA-Z]/.test(line)) cb.checked = true;
+          item.appendChild(cb);
+          item.appendChild(document.createTextNode(line));
+          ocrLines.appendChild(item);
+        });
+
+        ocrAddBtn.style.display = "";
+        URL.revokeObjectURL(objectURL);
+      } catch (err) {
+        ocrProgress.textContent = "OCR error: " + err.message;
+      }
+    }
+
+    ocrAddBtn.addEventListener("click", () => {
+      const t = i18n[currentLang];
+      const checked = Array.from(ocrLines.querySelectorAll("input[type=checkbox]:checked"))
+        .map(cb => cb.value.trim())
+        .filter(v => v.length > 0);
+
+      checked.forEach(addr => {
+        // Fill an existing empty row first, else add a new one
+        const emptyInputs = getLocationInputs().filter(i => i.value.trim() === "");
+        if (emptyInputs.length > 0) {
+          emptyInputs[0].value = addr;
+        } else {
+          locationsContainer.appendChild(createLocationRow(addr));
+        }
+      });
+
+      applyTranslations();
+      closeOcrModal();
+      if (checked.length > 0) setStatus(t.ocrAdded.replace("{n}", checked.length), "ok");
+    });
+    // ── end OCR ───────────────────────────────────────────────────────────────
 
     locationsContainer.appendChild(createLocationRow("Kamerlingh Onnesweg 9, Dordrecht"));
     locationsContainer.appendChild(createLocationRow(""));
