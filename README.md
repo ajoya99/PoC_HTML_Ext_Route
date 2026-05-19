@@ -43,7 +43,7 @@ PoC_HTML_Ext_Route/
 
 ## Landing Page + Routing API
 
-This project now includes a simple web UI where a user enters exactly 4 locations and clicks **GO**.
+This project includes a simple web UI (`python/web/landing.html`) backed by a Flask API.
 The backend loads the `haversine` routing function from `Google_maps_model_5.ipynb`, finds the best route, and returns a Google Maps directions link.
 
 ### Run Locally
@@ -65,16 +65,26 @@ Then open:
 - Frontend: `python/web/landing.html`
 - Backend API: `python/server.py`
 - Endpoint: `POST /api/route`
-- Input body: `{ "locations": ["loc1", "loc2", "loc3", "loc4"] }`
+- Input body: `{ "locations": ["loc1", "loc2", ...] }`
 - Output: ordered route + total distance + Google Maps link
 
 ## GitHub Pages (Phone Access)
 
 GitHub Pages can only host static files. Because of that, `index.html` contains a browser-only routing mode:
 
-- It accepts 4 locations.
-- It geocodes in the browser (OpenStreetMap Nominatim).
-- It computes the best route order for 4 points and generates a Google Maps link.
+- Accepts **multiple locations** (minimum 2, no upper limit).
+- New location fields are added by clicking **+ Add location**.
+- Each location can be removed individually.
+- Geocodes in the browser via OpenStreetMap Nominatim.
+- Computes an optimised route order and generates a Google Maps link.
+  - Exact permutation search is used for up to 8 intermediate stops.
+  - Nearest-neighbour heuristic is used for larger sets.
+
+### UI Features
+
+- **EN / NL language toggle** in the top-right corner — switches the entire interface between English and Dutch instantly.
+- **Round-trip toggle** (pinned under Location 1) — when checked the route returns to the starting location; when unchecked the last entered location is treated as the end point.
+- **Dynamic location list** — start with 2 fields, click **+ Add location** to add more, or use the **Remove** button next to any row.
 
 ### Publish Steps
 
